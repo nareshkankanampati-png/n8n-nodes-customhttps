@@ -60,12 +60,17 @@ export class HttpBin implements INodeType {
 
 			if (method === 'POST' || method === 'PUT') {
 				body = this.getNodeParameter('body', i);
+				 
 			}
 
 			const response = await axios({
 				url,
 				method,
 				data: body,
+				 headers: {
+      				'Content-Type': 'application/json',   // explicitly set JSON
+      				'Accept': 'application/json',
+    			},
 			});
 
 			returnData.push({
