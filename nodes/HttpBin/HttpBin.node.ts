@@ -1,63 +1,78 @@
-import { INodeType, INodeTypeDescription, NodeConnectionType } from 'n8n-workflow';
-import { httpVerbFields, httpVerbOperations } from './HttpVerbDescription';
+import { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescription, NodeConnectionType } from 'n8n-workflow';
+import axios from 'axios';
 
 export class HttpBin implements INodeType {
 	description: INodeTypeDescription = {
-		displayName: 'HttpBin',
-		name: 'httpBin',
-		icon: { light: 'file:httpbin.svg', dark: 'file:httpbin.svg' },
+		displayName: 'HTTP Custom',
+		name: 'httpCustom',
 		group: ['transform'],
 		version: 1,
-		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
-		description: 'Interact with HttpBin API',
+		description: 'Make a custom HTTP request',
 		defaults: {
-			name: 'HttpBin',
+			name: 'HTTP Custom',
 		},
 		inputs: [NodeConnectionType.Main],
 		outputs: [NodeConnectionType.Main],
-		usableAsTool: true,
-		credentials: [
-			{
-				name: 'httpbinApi',
-				required: false,
-			},
-		],
-		requestDefaults: {
-			baseURL: 'https://httpbin.org',
-			url: '',
-			headers: {
-				Accept: 'application/json',
-				'Content-Type': 'application/json',
-			},
-		},
-		/**
-		 * In the properties array we have two mandatory options objects required
-		 *
-		 * [Resource & Operation]
-		 *
-		 * https://docs.n8n.io/integrations/creating-nodes/code/create-first-node/#resources-and-operations
-		 *
-		 * In our example, the operations are separated into their own file (HTTPVerbDescription.ts)
-		 * to keep this class easy to read.
-		 *
-		 */
 		properties: [
 			{
-				displayName: 'Resource',
-				name: 'resource',
-				type: 'options',
-				noDataExpression: true,
-				options: [
-					{
-						name: 'HTTP Verb',
-						value: 'httpVerb',
-					},
-				],
-				default: 'httpVerb',
+				displayName: 'URL',
+				name: 'url',
+				type: 'string',
+				default: '',
+				placeholder: 'https://api.example.com/data',
+				required: true,
 			},
-
-			...httpVerbOperations,
-			...httpVerbFields,
+			{
+				displayName: 'Method',
+				name: 'method',
+				type: 'options',
+				options: [
+					{ name: 'GET', value: 'GET' },
+					{ name: 'POST', value: 'POST' },
+					{ name: 'PUT', value: 'PUT' },
+					{ name: 'DELETE', value: 'DELETE' },
+				],
+				default: 'GET',
+			},
+			{
+				displayName: 'Body (JSON)',
+				name: 'body',
+				type: 'json',
+				default: '{}',
+				displayOptions: {
+					show: {
+						method: ['POST', 'PUT'],
+					},
+				},
+			},
 		],
 	};
+
+	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
+		const items = this.getInputData();
+
+		const returnData: INodeExecutionData[] = [];
+
+		for (let i = 0; i < items.length; i++) {
+			const url = this.getNodeParameter('url', i) as string;
+			const method = this.getNodeParameter('method', i) as string;
+			let body: any = {};
+
+			if (method === 'POST' || method === 'PUT') {
+				body = this.getNodeParameter('body', i);
+			}
+
+			const response = await axios({
+				url,
+				method,
+				data: body,
+			});
+
+			returnData.push({
+				json: response.data,
+			});
+		}
+
+		return [returnData];
+	}
 }
